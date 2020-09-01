@@ -1,0 +1,56 @@
+#!/bin/bash
+
+Url=https://dev-builds.libreoffice.org/pre-releases/deb/x86_64/
+Liste=/tmp/Libreoffice-$$.txt
+PackageList=/tmp/Libreoffice-Package-$$.txt
+
+echo "Getting AMD64 available versions ..."
+rm -f index.html
+wget -q $Url
+mv index.html $Liste
+echo ""
+
+if [ $# -eq 0 ]
+then
+    echo "Main package available"
+    echo "----------------------"
+    cat $Liste |                         \
+	tr [' '] ['\n'] | grep href|     \
+	cut -d'"' -f2|grep ^LibreOffice| \
+	grep -v -e .asc -e langpack -e helppack -e sdk|\
+	sed 's/.tar.gz//g' > $PackageList
+    for Version in $(cat $PackageList)
+    do
+	printf "%-14s : $Version\n" $(echo $Version|cut -d_ -f2)
+    done
+    echo ""
+    rm -f $Liste $PackageList
+    exit 0
+fi
+Version=$1
+cat $Liste |                         \
+    tr [' '] ['\n']  | grep href |   \
+    cut -d'"' -f2|grep ^LibreOffice| \
+    grep -v -e .asc -e sdk |         \
+    grep $Version > $PackageList
+
+MainPack=$(grep -v -e langpack -e helppack $PackageList)
+LangPack=$(grep langpack_fr                $PackageList)
+HelpPack=$(grep helppack_fr                $PackageList)
+rm -f $Liste $PackageList
+
+echo "Downloading package archives ..."
+wget -q $Url/$MainPack $Url/$LangPack $Url/$HelpPack
+echo ""
+
+echo "Extracting packages ..."
+tar xfz $MainPack && rm -f $MainPack
+tar xfz $LangPack && rm -f $LangPack
+tar xfz $HelpPack && rm -f $HelpPack
+
+echo "Merging package ..."
+mv -f ${LangPack%.tar.gz}/DEBS/* ${MainPack%.tar.gz}/DEBS && rm -rf ${LangPack%.tar.gz}
+mv -f ${HelpPack%.tar.gz}/DEBS/* ${MainPack%.tar.gz}/DEBS && rm -rf ${HelpPack%.tar.gz}
+
+echo "Packages available in directory : $(readlink -f ${MainPack%.tar.gz}/DEBS)"
+echo ""
