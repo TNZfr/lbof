@@ -5,29 +5,32 @@ Liste=/tmp/Libreoffice-$$.txt
 PackageList=/tmp/Libreoffice-Package-$$.txt
 
 echo "Getting AMD64 available versions ..."
-rm -f index.html
-wget -q $Url
-mv index.html $Liste
-echo ""
+wget -q $Url -O $Liste
 
 if [ $# -eq 0 ]
 then
+    echo ""
     echo "Main package available"
     echo "----------------------"
+
     cat $Liste |                         \
 	tr [' '] ['\n'] | grep href|     \
 	cut -d'"' -f2|grep ^LibreOffice| \
-	grep -v -e .asc -e langpack -e helppack -e sdk|\
+	grep -v -e .asc -e langpack -e helppack -e sdk| \
 	sed 's/.tar.gz//g' > $PackageList
     for Version in $(cat $PackageList)
     do
 	printf "%-14s : $Version\n" $(echo $Version|cut -d_ -f2)
     done
-    echo ""
     rm -f $Liste $PackageList
+
+    echo ""
     exit 0
 fi
+
 Version=$1
+
+echo "Selecting files to download ..."
 cat $Liste |                         \
     tr [' '] ['\n']  | grep href |   \
     cut -d'"' -f2|grep ^LibreOffice| \
@@ -39,18 +42,27 @@ LangPack=$(grep langpack_fr                $PackageList)
 HelpPack=$(grep helppack_fr                $PackageList)
 rm -f $Liste $PackageList
 
-echo "Downloading package archives ..."
-wget -q $Url/$MainPack $Url/$LangPack $Url/$HelpPack
-echo ""
-
-echo "Extracting packages ..."
-tar xfz $MainPack && rm -f $MainPack
-tar xfz $LangPack && rm -f $LangPack
-tar xfz $HelpPack && rm -f $HelpPack
+echo "Downloading and extracting package archives ..."
+(wget -q $Url/$MainPack && tar xfz $MainPack && rm -f $MainPack) &
+(wget -q $Url/$LangPack && tar xfz $LangPack && rm -f $LangPack) &
+(wget -q $Url/$HelpPack && tar xfz $HelpPack && rm -f $HelpPack) &
+wait
 
 echo "Merging package ..."
-mv -f ${LangPack%.tar.gz}/DEBS/* ${MainPack%.tar.gz}/DEBS && rm -rf ${LangPack%.tar.gz}
-mv -f ${HelpPack%.tar.gz}/DEBS/* ${MainPack%.tar.gz}/DEBS && rm -rf ${HelpPack%.tar.gz}
+(mv -f ${LangPack%.tar.gz}/DEBS/* ${MainPack%.tar.gz}/DEBS && rm -rf ${LangPack%.tar.gz}) &
+(mv -f ${HelpPack%.tar.gz}/DEBS/* ${MainPack%.tar.gz}/DEBS && rm -rf ${HelpPack%.tar.gz}) &
+wait
 
+echo ""
 echo "Packages available in directory : $(readlink -f ${MainPack%.tar.gz}/DEBS)"
 echo ""
+
+if [ $# -gt 1 ] && [ "$2" = "install" ]
+then
+    echo "Installing $Version ..."
+    [ $LOGNAME = root ] && LBOF_sudo="" || LBOF_sudo=sudo
+    
+    cd ${MainPack%.tar.gz}/DEBS
+    $LBOF_sudo dpkg -i *.deb
+    echo ""
+fi
