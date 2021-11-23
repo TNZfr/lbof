@@ -1,14 +1,86 @@
 #!/bin/bash
 
-Url=https://dev-builds.libreoffice.org/pre-releases/deb/x86_64/
+#------------------------------------------------------------------------------------------------
+function printh
+{
+    printf "$(date +%d/%m/%Y-%Hh%Mm%Ss) : $*\n"
+}
+
+
+#------------------------------------------------------------------------------------------------
+TopHorloge ()
+{
+    date +%s.%N
+}
+
+#------------------------------------------------------------------------------------------------
+AfficheDuree ()
+{
+    # Parametres au format SECONDE.NANO (date +%s.%N)
+    Debut=$1
+    Fin=$2
+
+    AD_Duree=$(echo "scale=6; $Fin - $Debut"|bc)
+    [ "${AD_Duree:0:1}" = "." ] && AD_Duree="0$AD_Duree"
+    
+    Seconde=$(echo $AD_Duree|cut -d. -f1)
+    Milli=$(  echo $AD_Duree|cut -d. -f2)
+    Milli=${Milli:0:3}
+
+    (( Jour   = $Seconde / 86400 )) ; (( Seconde = $Seconde % 86400 ))
+    (( Heure  = $Seconde /  3600 )) ; (( Seconde = $Seconde %  3600 ))
+    (( Minute = $Seconde /    60 )) ; (( Seconde = $Seconde %    60 ))
+
+    [ $Jour   -gt 0 ] && printf "${Jour}j ${Heure}h ${Minute}m ${Seconde}s.$Milli\n" && return
+    [ $Heure  -gt 0 ] && printf "${Heure}h ${Minute}m ${Seconde}s.$Milli\n" && return
+    [ $Minute -gt 0 ] && printf "${Minute}m ${Seconde}s.$Milli\n" && return
+    echo "${Seconde}s.$Milli"
+}
+
+#------------------------------------------------------------------------------------------------
+# Main
+#
+
+if [ $# -gt 0 ] && [ $1 = help ]
+then
+    echo ""
+    echo "Syntax : $0 [pack=...] [lang=...] [download=...] [install=...] [clean=yes]"
+    echo ""
+    echo "  pack : package type deb or rpm (default is deb)"
+    echo "  lang : language pack (default is fr)"
+    echo ""
+    echo "  download : package version to download"
+    echo "  install  : package version to install. Thee priority is given to install= on download="
+    echo "  clean    : remove directory created by archive extraction (default no)"
+    echo ""
+    exit 0
+fi
+
+Debut=$(TopHorloge)
+
+pack=deb
+lang=fr
+download=none
+install=none
+clean=no
+
+[ $# -ne 0 ] && for Param in $*; do eval $Param; done
+[ $install != none ] && download=$install
+
+Url=https://dev-builds.libreoffice.org/pre-releases/$pack/x86_64/
 Liste=/tmp/Libreoffice-$$.txt
 PackageList=/tmp/Libreoffice-Package-$$.txt
 
-echo "Getting AMD64 available versions ..."
+printh "Getting available versions ($pack) ..."
 wget -q $Url -O $Liste
+[ $? -ne 0 ] && exit 1
 
-if [ $# -eq 0 ]
+# Available arhive list
+# ---------------------
+if [ $download = none ]
 then
+    echo ""
+    echo "Online help : $0 help"
     echo ""
     echo "Main package available"
     echo "----------------------"
@@ -25,44 +97,89 @@ then
     rm -f $Liste $PackageList
 
     echo ""
+    echo "Elapsed : $(AfficheDuree $Debut $(TopHorloge))"
+    echo ""
     exit 0
 fi
 
-Version=$1
-
-echo "Selecting files to download ..."
+printh "Selecting files to download (lang=$lang) ..."
 cat $Liste |                         \
     tr [' '] ['\n']  | grep href |   \
     cut -d'"' -f2|grep ^LibreOffice| \
     grep -v -e .asc -e sdk |         \
-    grep $Version > $PackageList
+    grep $download > $PackageList
 
 MainPack=$(grep -v -e langpack -e helppack $PackageList)
-LangPack=$(grep langpack_fr                $PackageList)
-HelpPack=$(grep helppack_fr                $PackageList)
+HelpPack=$(grep helppack_$lang             $PackageList)
+LangPack=$(grep langpack_$lang             $PackageList)
+[ $lang = en-US ] && LangPack="Main package default language"
 rm -f $Liste $PackageList
 
-echo "Downloading and extracting package archives ..."
+if [ "$MainPack" = "" ] || [ "$LangPack" = "" ] || [ "$HelpPack" = "" ]
+then
+    echo ""
+    echo "Missing package(s) for "
+    echo "  - Package type = $pack"
+    echo "  - Version      = $download"
+    echo "  - Lang         = $lang"
+    echo ""
+    echo "Main package : $MainPack"
+    echo "Lang package : $LangPack"
+    echo "Help package : $HelpPack"
+    echo ""
+    echo "Elapsed : $(AfficheDuree $Debut $(TopHorloge))"
+    echo ""
+    exit 1
+fi
+
+printh "Downloading and extracting package archives ..."
 (wget -q $Url/$MainPack && tar xfz $MainPack && rm -f $MainPack) &
-(wget -q $Url/$LangPack && tar xfz $LangPack && rm -f $LangPack) &
 (wget -q $Url/$HelpPack && tar xfz $HelpPack && rm -f $HelpPack) &
+if [ $lang != en-US ]
+then
+    (wget -q $Url/$LangPack && tar xfz $LangPack && rm -f $LangPack) &
+fi
 wait
 
-echo "Merging package ..."
-(mv -f ${LangPack%.tar.gz}/DEBS/* ${MainPack%.tar.gz}/DEBS && rm -rf ${LangPack%.tar.gz}) &
-(mv -f ${HelpPack%.tar.gz}/DEBS/* ${MainPack%.tar.gz}/DEBS && rm -rf ${HelpPack%.tar.gz}) &
+printh "Merging package ..."
+[ $pack = deb ] && SubDir=DEBS || SubDir=RPMS 
+(mv -f ${HelpPack%.tar.gz}/$SubDir/* ${MainPack%.tar.gz}/$SubDir && rm -rf ${HelpPack%.tar.gz}) &
+if [ $lang != en-US ]
+then
+    (mv -f ${LangPack%.tar.gz}/$SubDir/* ${MainPack%.tar.gz}/$SubDir && rm -rf ${LangPack%.tar.gz}) &
+fi
 wait
 
 echo ""
 echo "Packages available in directory : $(readlink -f ${MainPack%.tar.gz}/DEBS)"
 echo ""
 
-if [ $# -gt 1 ] && [ "$2" = "install" ]
-then
-    echo "Installing $Version ..."
+if [ $install != none ]
+then    
+    printh "Installing $install ..."
     [ $LOGNAME = root ] && LBOF_sudo="" || LBOF_sudo=sudo
     
-    cd ${MainPack%.tar.gz}/DEBS
-    $LBOF_sudo dpkg -i *.deb
+    CuurentDirectory=$PWD
+    cd ${MainPack%.tar.gz}/$SubDir
+    case $pack in
+	deb) 
+	    $LBOF_sudo dpkg -i *.deb
+	    ;;
+
+	rpm)
+	    $LBOF_sudo rpm  -i *.rpm
+	    ;;
+    esac
     echo ""
+    cd $CurrentDirectory
 fi
+
+if [ $clean = yes ]
+then
+    printh "Cleaning ${MainPack%.tar.gz} directory ..."
+    rm -rf ${MainPack%.tar.gz}
+fi
+
+echo ""
+echo "Elapsed : $(AfficheDuree $Debut $(TopHorloge))"
+echo ""
