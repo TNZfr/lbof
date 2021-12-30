@@ -50,7 +50,7 @@ then
     echo "  lang : language pack (default is fr)"
     echo ""
     echo "  download : package version to download"
-    echo "  install  : package version to install. Thee priority is given to install= on download="
+    echo "  install  : package version to install. The priority is given to install= on download="
     echo "  clean    : remove directory created by archive extraction (default no)"
     echo ""
     exit 0
