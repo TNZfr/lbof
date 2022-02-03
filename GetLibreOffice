@@ -40,6 +40,12 @@ AfficheDuree ()
 #------------------------------------------------------------------------------------------------
 # Main
 #
+if [ $LOGNAME = birdie ]
+then
+    # https://translate.google.com/ is your friend 
+    echo "EOSD-Oversized Stupidity Detected : Incompatible execution context."
+    exit 1
+fi
 
 if [ $# -gt 0 ] && [ $1 = help ]
 then
