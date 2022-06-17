@@ -9,3 +9,5 @@ Syntax : ./GetLibreOffice [pack=...] [lang=...] [download=...] [install=...] [cl
   download : package version to download</br>
   install  : package version to install. The priority is given to install= on download=</br>
   clean    : remove directory created by archive extraction (default no)</br>
+
+Test intellij community 
