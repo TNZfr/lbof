@@ -57,7 +57,7 @@ then
     echo ""
     echo "  download : package version to download"
     echo "  install  : package version to install. The priority is given to install= on download="
-    echo "  clean    : remove directory created by archive extraction (default no)"
+    echo "  clean    : remove directory created by archive extraction (default yes)"
     echo ""
     exit 0
 fi
@@ -68,7 +68,7 @@ pack=deb
 lang=fr
 download=none
 install=none
-clean=no
+clean=yes
 
 [ $# -ne 0 ] && for Param in $*; do eval $Param; done
 [ $install != none ] && download=$install
