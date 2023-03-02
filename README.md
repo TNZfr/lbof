@@ -10,5 +10,5 @@ Syntax : ./GetLibreOffice [pack=...] [lang=...] [download=...] [install=...] [cl
   install  : package version to install. The priority is given to install= on download=</br>
   clean    : remove directory created by archive extraction (default no)</br>
 
-Changelog
+Changelog<br>
 20230302, Default parameter clean now set to yes
