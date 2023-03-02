@@ -2,7 +2,7 @@
 
 ~$ GetLibreOffice help
 
-Syntax : ./GetLibreOffice [pack=...] [lang=...] [download=...] [install=...] [clean=yes]
+Syntax : ./GetLibreOffice [pack=...] [lang=...] [download=...] [install=...] [clean=no]
 
   pack     : package type deb or rpm (default is deb)</br>
   lang     : language pack           (default is fr)</br>
