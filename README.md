@@ -14,4 +14,4 @@ Changelog<br>
 20230302, Default parameter clean now set to yes<br>
 20240106, No changes, just to say it works with new version naming (24.2)<br>
 20240202, Screenshot<br>
-![](https://i.imgur.com/8ES1FRs.png)
+![](https://i.imgur.com/KklkKf6.png)
